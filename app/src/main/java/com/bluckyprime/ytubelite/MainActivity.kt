@@ -7,14 +7,10 @@ import android.os.Environment
 import android.content.ContentValues
 import android.graphics.Color
 import android.provider.MediaStore
-import android.view.Gravity
 import android.view.View
-import android.view.inputmethod.InputMethodManager
-import android.content.Context
 import android.widget.*
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
-import com.yausername.youtubedl_android.FFmpeg
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -37,13 +33,13 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         buildInterface()
+
         statusText.text = "Initializing downloader..."
         downloadButton.isEnabled = false
 
         executor.execute {
             try {
                 YoutubeDL.getInstance().init(applicationContext)
-                FFmpeg.getInstance().init(applicationContext)
 
                 runOnUiThread {
                     ready = true
@@ -52,7 +48,8 @@ class MainActivity : Activity() {
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    statusText.text = "Initialization failed:\n${e.message}"
+                    statusText.text =
+                        "Initialization failed:\n${e.message}"
                 }
             }
         }
@@ -82,7 +79,7 @@ class MainActivity : Activity() {
 
         urlInput = EditText(this).apply {
             hint = "Paste video URL here"
-            singleLine = true
+            setSingleLine(true)
         }
         root.addView(urlInput, params())
 
@@ -141,12 +138,14 @@ class MainActivity : Activity() {
             return
         }
 
-        if (!url.startsWith("https://") && !url.startsWith("http://")) {
+        if (!url.startsWith("https://") &&
+            !url.startsWith("http://")) {
             urlInput.error = "Enter a valid video URL"
             return
         }
 
         val audioOnly = mp3Radio.isChecked
+
         downloadButton.isEnabled = false
         progressBar.progress = 0
         statusText.text = "Preparing download..."
@@ -158,6 +157,7 @@ class MainActivity : Activity() {
                 ) ?: cacheDir
 
                 val outputDir = File(base, "YTubeLite")
+
                 if (!outputDir.exists() && !outputDir.mkdirs()) {
                     throw IOException("Cannot create download folder.")
                 }
@@ -165,7 +165,8 @@ class MainActivity : Activity() {
                 outputDir.listFiles()?.forEach { it.delete() }
 
                 val template = File(
-                    outputDir, "%(title).150B [%(id)s].%(ext)s"
+                    outputDir,
+                    "%(title).150B [%(id)s].%(ext)s"
                 ).absolutePath
 
                 val request = YoutubeDLRequest(url)
@@ -198,6 +199,7 @@ class MainActivity : Activity() {
                     runOnUiThread {
                         progressBar.progress =
                             progress.toInt().coerceIn(0, 100)
+
                         statusText.text = line.take(180).ifBlank {
                             "Downloading... ETA: ${eta}s"
                         }
@@ -219,7 +221,11 @@ class MainActivity : Activity() {
                     ?.maxByOrNull { it.lastModified() }
                     ?: throw IOException("No media file was created.")
 
-                val mime = if (audioOnly) "audio/mpeg" else "video/mp4"
+                val mime = if (audioOnly) {
+                    "audio/mpeg"
+                } else {
+                    "video/mp4"
+                }
 
                 publishToDownloads(output, mime)
 
@@ -227,8 +233,11 @@ class MainActivity : Activity() {
                     progressBar.progress = 100
                     statusText.text = "Saved: ${output.name}"
                     downloadButton.isEnabled = true
+
                     Toast.makeText(
-                        this, "Download completed", Toast.LENGTH_LONG
+                        this,
+                        "Download completed",
+                        Toast.LENGTH_LONG
                     ).show()
                 }
 
@@ -242,7 +251,10 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun publishToDownloads(source: File, mimeType: String) {
+    private fun publishToDownloads(
+        source: File,
+        mimeType: String
+    ) {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, source.name)
             put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
@@ -254,7 +266,8 @@ class MainActivity : Activity() {
         }
 
         val uri = contentResolver.insert(
-            MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+            MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            values
         ) ?: throw IOException("Could not create Downloads file.")
 
         try {
@@ -270,6 +283,7 @@ class MainActivity : Activity() {
             val finished = ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
             }
+
             contentResolver.update(uri, finished, null, null)
 
         } catch (e: Exception) {
@@ -291,6 +305,7 @@ class MainActivity : Activity() {
             YoutubeDL.getInstance().destroyProcessById(processId)
         } catch (_: Exception) {
         }
+
         executor.shutdownNow()
         super.onDestroy()
     }
